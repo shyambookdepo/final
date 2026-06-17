@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Shyam Book Depo - School book management system. Manage schools, classes, books, and notebooks effortlessly.">
+  <meta name="theme-color" content="#0F172A">
+  <title>Shyam Book Depo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700&family=Nunito+Sans:opsz,wght@6..12,500;6..12,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.lordicon.com/lordicon.js"></script>
+</head>
+<body>
+  <!-- NAVIGATION BAR (sticky) -->
+  <nav id="navbar">
+    <div class="nav-brand">
+      <span class="nav-logo">📚</span>
+      <span class="nav-title">Shyam Book Depo</span>
+    </div>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="#" class="nav-link active" data-page="home" id="nav-home">
+          <span class="nav-link-icon">🏠</span>
+          <span class="nav-link-text">Home</span>
+        </a>
+        <a href="#" class="nav-link" data-page="entries" id="nav-entries">
+          <span class="nav-link-icon">📋</span>
+          <span class="nav-link-text">Entries</span>
+        </a>
+        <a href="#" class="nav-link" data-page="admin" id="nav-admin">
+          <span class="nav-link-icon">⚙️</span>
+          <span class="nav-link-text">Admin</span>
+        </a>
+      </div>
+      <button id="theme-toggle" class="btn-theme-toggle" title="Switch to Dark Theme" aria-label="Toggle Theme">
+        <span class="theme-toggle-icon">🌙</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main id="main-content">
+
+    <!-- ===== HOME PAGE ===== -->
+    <section id="page-home" class="page active">
+      <!-- School Selection View -->
+      <div id="school-selection">
+        <div id="schools-grid" class="card-grid"></div>
+      </div>
+
+      <!-- Class Selection View (hidden initially) -->
+      <div id="class-selection" class="hidden">
+        <button id="back-to-schools" class="btn-back">← Back to Schools</button>
+        <h2 id="selected-school-name" style="margin-bottom: 24px; font-size: 2rem;"></h2>
+        <div id="classes-grid" class="card-grid"></div>
+      </div>
+
+      <!-- Invoice Creation View (hidden initially) -->
+      <div id="invoice-view" class="hidden">
+
+        <!-- Compact App-Like Header -->
+        <div class="invoice-page-header">
+          <button id="back-to-classes" class="invoice-back-btn">←</button>
+          <div id="invoice-page-title" class="invoice-page-title">Manage Students</div>
+        </div>
+
+        <!-- Student Tabs Bar with Inline Actions -->
+        <div id="student-tabs-bar">
+          <div id="student-tabs"></div>
+          <div class="student-tabs-actions">
+            <button id="btn-duplicate" class="btn-tab-action" title="Duplicate Student">⎘</button>
+            <button id="btn-new-student" class="btn-tab-action btn-tab-action-add" title="New Student">+</button>
+          </div>
+        </div>
+
+        <!-- Student Content Area (dynamic, one per student) -->
+        <div id="student-content"></div>
+
+        <!-- Bottom Action Bar -->
+        <div id="invoice-actions">
+          <div class="invoice-actions-inner">
+            <div class="invoice-summary" id="invoice-summary"></div>
+            <button id="btn-continue" class="btn btn-success btn-lg">Continue →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ENTRIES PAGE ===== -->
+    <section id="page-entries" class="page hidden">
+      <div id="entries-search">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-entries" placeholder="Search by name, mobile, or #...">
+        </div>
+        <div class="sort-wrapper">
+          <select id="sort-entries">
+            <option value="date-new">Sort By: Newest</option>
+            <option value="date-old">Sort By: Oldest</option>
+            <option value="name-asc">Sort By: Customer Name</option>
+            <option value="invoice-desc">Sort By: No.</option>
+          </select>
+        </div>
+      </div>
+      <div id="entries-filters">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="pending">⏳ Pending</button>
+        <button class="filter-btn" data-filter="partial">🔄 Partial</button>
+        <button class="filter-btn" data-filter="completed">✅ Completed</button>
+        <button class="filter-btn" data-filter="returned">↩️ Returned</button>
+      </div>
+      <div id="entries-list"></div>
+    </section>
+
+    <!-- ===== ADMIN PAGE ===== -->
+    <section id="page-admin" class="page hidden">
+      <!-- Login Form (shown when not authenticated) -->
+      <div id="admin-login">
+        <div class="login-card">
+          <h2 class="text-center" style="margin-bottom: 24px;">🔐 Admin Login</h2>
+          <div class="form-group">
+            <label for="admin-username">Username</label>
+            <input type="text" id="admin-username" placeholder="Enter username" autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="admin-password">Password</label>
+            <input type="password" id="admin-password" placeholder="Enter password" autocomplete="current-password">
+          </div>
+          <button id="btn-admin-login" class="btn btn-primary btn-lg btn-full">Login</button>
+          <p id="login-error" class="error-text hidden"></p>
+        </div>
+      </div>
+
+      <!-- Admin Dashboard (hidden until login) -->
+      <div id="admin-dashboard" class="hidden">
+        <div id="admin-header">
+          <h2 style="margin: 0; font-size: 1.6rem;">📊 Admin Dashboard</h2>
+          <button id="btn-admin-logout" class="btn btn-danger btn-sm">🚪 Logout</button>
+        </div>
+
+        <!-- Stats Cards -->
+        <div id="stats-grid">
+          <div class="stat-card stat-invoices">
+            <div class="stat-icon">📄</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-total-invoices">0</div>
+              <div class="stat-label">Total</div>
+            </div>
+          </div>
+          <div class="stat-card stat-pending">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-pending">0</div>
+              <div class="stat-label">Pending Items</div>
+            </div>
+          </div>
+          <div class="stat-card stat-completed">
+            <div class="stat-icon">✅</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-completed">0</div>
+              <div class="stat-label">Completed Items</div>
+            </div>
+          </div>
+          <div class="stat-card stat-returned">
+            <div class="stat-icon">↩️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="stat-returned">0</div>
+              <div class="stat-label">Returned Items</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Tabs -->
+        <div id="admin-tabs">
+          <button class="admin-tab active" data-tab="schools">🏫 Schools</button>
+          <button class="admin-tab" data-tab="classes">📖 Classes</button>
+          <button class="admin-tab" data-tab="books">📕 Books</button>
+          <button class="admin-tab" data-tab="notebooks">📓 Notebooks</button>
+        </div>
+
+        <!-- Admin Content Panels -->
+        <div id="admin-content">
+          <div id="admin-schools" class="admin-panel active"></div>
+          <div id="admin-classes" class="admin-panel hidden"></div>
+          <div id="admin-books" class="admin-panel hidden"></div>
+          <div id="admin-notebooks" class="admin-panel hidden"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== MODALS ===== -->
+
+  <!-- Checkout Modal -->
+  <div id="modal-checkout" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Complete</h2>
+        <button class="modal-close" data-modal="modal-checkout">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="checkout-mobile">Customer Mobile Number</label>
+          <input type="text" id="checkout-mobile" placeholder="Enter exactly 10-digits" pattern="\d{10}" maxlength="10" inputmode="numeric">
+        </div>
+        <div class="form-group">
+          <label for="checkout-name">Customer Name</label>
+          <input type="text" id="checkout-name" placeholder="Enter customer name">
+        </div>
+        <div class="form-group">
+          <label for="checkout-message">Message (Optional)</label>
+          <textarea id="checkout-message" placeholder="Add a message..." rows="3"></textarea>
+        </div>
+        <div id="checkout-summary" class="checkout-summary"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-checkout" class="btn btn-secondary">Cancel</button>
+        <button id="btn-complete-invoice" class="btn btn-success">✅ Complete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Student Modal -->
+  <div id="modal-new-student" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Add New Student</h2>
+        <button class="modal-close" data-modal="modal-new-student">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="new-student-school">Select School</label>
+          <select id="new-student-school">
+            <option value="">-- Select School --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="new-student-class">Select Class</label>
+          <select id="new-student-class" disabled>
+            <option value="">-- Select Class --</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-new-student" class="btn btn-secondary">Cancel</button>
+        <button id="btn-confirm-new-student" class="btn btn-primary">Add Student</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Add/Edit Modal -->
+  <div id="modal-admin" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="admin-modal-title"></h2>
+        <button class="modal-close" data-modal="modal-admin">&times;</button>
+      </div>
+      <div class="modal-body" id="admin-modal-body"></div>
+      <div class="modal-actions">
+        <button id="btn-cancel-admin" class="btn btn-secondary">Cancel</button>
+        <button id="btn-save-admin" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Details Modal -->
+  <div id="modal-invoice-details" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content" style="max-width: 850px; width: 98%;">
+      <div class="modal-header">
+        <h2 id="invoice-details-title">Details</h2>
+        <button class="modal-close" data-modal="modal-invoice-details">&times;</button>
+      </div>
+      <div class="modal-body" id="invoice-details-body">
+        <!-- Dynamic content goes here -->
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="Modal.close('modal-invoice-details')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Bottom Mobile Navigation ── -->
+  <div class="bottom-nav">
+    <div class="bnav-inner">
+      <div class="bnav-indicator"></div>
+      <button class="bnav-btn active" id="bnav-home" data-page="home" data-index="0">
+        <span class="bnav-icon">🏠</span>
+        <span class="bnav-text">Home</span>
+      </button>
+      <button class="bnav-btn" id="bnav-entries" data-page="entries" data-index="1">
+        <span class="bnav-icon">📋</span>
+        <span class="bnav-text">Entries</span>
+      </button>
+      <button class="bnav-btn" id="bnav-admin" data-page="admin" data-index="2">
+        <span class="bnav-icon">⚙️</span>
+        <span class="bnav-text">Admin</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast/Notification -->
+  <div id="toast" class="toast hidden">
+    <span class="toast-icon"></span>
+    <span class="toast-message"></span>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p class="loading-text">Loading...</p>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
