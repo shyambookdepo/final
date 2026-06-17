@@ -715,7 +715,9 @@ const Invoice = {
   },
 
   renderCatalogCard(item, studentIndex, catType, catIndex) {
-    const identityClass = item.type === 'notebook' ? 'notebook' : '';
+    const len = (item.identity || '').length;
+    const lenClass = len > 10 ? 'identity-extra-long' : (len > 6 ? 'identity-long' : '');
+    const identityClass = `${item.type === 'notebook' ? 'notebook' : ''} ${lenClass}`.trim();
     const isSelected = item.quantity > 0;
     const selectedClass = isSelected ? 'item-card-selected' : '';
     const hasNote = item.message && item.message.trim().length > 0;
@@ -1762,13 +1764,14 @@ const Admin = {
           <div class="admin-list-item ${isDisabled ? 'disabled' : ''}">
             <div class="admin-list-info">
               <span class="admin-list-name">${escapeHtml(school.name)}</span>
-              <span class="admin-list-meta">Index: ${school.index} | Status: ${isDisabled ? 'Disabled' : 'Active'}</span>
+              <span class="admin-list-meta">Status: ${isDisabled ? 'Disabled' : 'Active'}</span>
             </div>
             <div class="admin-list-actions">
               <button class="btn btn-info btn-sm" onclick="Admin.showEditSchoolModal(${JSON.stringify(school).replace(/"/g, '&quot;')})">✏️ Edit</button>
               <button class="btn ${isDisabled ? 'btn-success' : 'btn-warning'} btn-sm" onclick="Admin.toggleSchool(${school.index}, ${isDisabled ? 1 : 0})">
                 ${isDisabled ? '✅ Enable' : '⏸️ Disable'}
               </button>
+              <button class="btn btn-danger btn-sm" onclick="Admin.toggleSchool(${school.index}, 2)">🗑️ Delete</button>
             </div>
           </div>
         `;
@@ -1809,12 +1812,21 @@ const Admin = {
   },
 
   async toggleSchool(schoolIndex, newStatus) {
+    if (newStatus === 2) {
+      if (!confirm("Are you sure you want to delete this school? This action cannot be undone.")) {
+        return;
+      }
+    }
     const result = await API.post('toggleSchool', {
       schoolIndex: schoolIndex,
       status: newStatus,
     });
     if (result && result.success) {
-      showToast(`School ${newStatus === 0 ? 'disabled' : 'enabled'}`, 'success');
+      let msg = '';
+      if (newStatus === 0) msg = 'School disabled';
+      else if (newStatus === 1) msg = 'School enabled';
+      else if (newStatus === 2) msg = 'School deleted';
+      showToast(msg, 'success');
       this.loadSchools();
     }
   },
@@ -1897,13 +1909,14 @@ const Admin = {
             <div class="admin-list-item ${isDisabled ? 'disabled' : ''}">
               <div class="admin-list-info">
                 <span class="admin-list-name">${escapeHtml(cls.name)}</span>
-                <span class="admin-list-meta">Index: ${cls.index} | Status: ${isDisabled ? 'Disabled' : 'Active'}</span>
+                <span class="admin-list-meta">Status: ${isDisabled ? 'Disabled' : 'Active'}</span>
               </div>
               <div class="admin-list-actions">
                 <button class="btn btn-info btn-sm" onclick="Admin.showEditClassModal(${JSON.stringify(cls).replace(/"/g, '&quot;')})">✏️ Edit</button>
                 <button class="btn ${isDisabled ? 'btn-success' : 'btn-warning'} btn-sm" onclick="Admin.toggleClass(${cls.index}, ${isDisabled ? 1 : 0})">
                   ${isDisabled ? '✅ Enable' : '⏸️ Disable'}
                 </button>
+                <button class="btn btn-danger btn-sm" onclick="Admin.toggleClass(${cls.index}, 2)">🗑️ Delete</button>
               </div>
             </div>
           `;
@@ -1966,12 +1979,21 @@ const Admin = {
   },
 
   async toggleClass(classIndex, newStatus) {
+    if (newStatus === 2) {
+      if (!confirm("Are you sure you want to delete this class? This action cannot be undone.")) {
+        return;
+      }
+    }
     const result = await API.post('toggleClass', {
       classIndex: classIndex,
       status: newStatus,
     });
     if (result && result.success) {
-      showToast(`Class ${newStatus === 0 ? 'disabled' : 'enabled'}`, 'success');
+      let msg = '';
+      if (newStatus === 0) msg = 'Class disabled';
+      else if (newStatus === 1) msg = 'Class enabled';
+      else if (newStatus === 2) msg = 'Class deleted';
+      showToast(msg, 'success');
       this.loadClasses();
     }
   },
@@ -2057,6 +2079,7 @@ const Admin = {
                 <button class="btn ${isDisabled ? 'btn-success' : 'btn-warning'} btn-sm" onclick="Admin.toggleBook(${book.index}, ${isDisabled ? 1 : 0})">
                   ${isDisabled ? '✅ Enable' : '⏸️ Disable'}
                 </button>
+                <button class="btn btn-danger btn-sm" onclick="Admin.toggleBook(${book.index}, 2)">🗑️ Delete</button>
               </div>
             </div>
           `;
@@ -2132,12 +2155,21 @@ const Admin = {
   },
 
   async toggleBook(bookIndex, newStatus) {
+    if (newStatus === 2) {
+      if (!confirm("Are you sure you want to delete this book? This action cannot be undone.")) {
+        return;
+      }
+    }
     const result = await API.post('toggleBook', {
       bookIndex: bookIndex,
       status: newStatus,
     });
     if (result && result.success) {
-      showToast(`Book ${newStatus === 0 ? 'disabled' : 'enabled'}`, 'success');
+      let msg = '';
+      if (newStatus === 0) msg = 'Book disabled';
+      else if (newStatus === 1) msg = 'Book enabled';
+      else if (newStatus === 2) msg = 'Book deleted';
+      showToast(msg, 'success');
       this.loadBooks();
     }
   },
@@ -2223,6 +2255,7 @@ const Admin = {
                 <button class="btn ${isDisabled ? 'btn-success' : 'btn-warning'} btn-sm" onclick="Admin.toggleNotebook(${nb.index}, ${isDisabled ? 1 : 0})">
                   ${isDisabled ? '✅ Enable' : '⏸️ Disable'}
                 </button>
+                <button class="btn btn-danger btn-sm" onclick="Admin.toggleNotebook(${nb.index}, 2)">🗑️ Delete</button>
               </div>
             </div>
           `;
@@ -2298,12 +2331,21 @@ const Admin = {
   },
 
   async toggleNotebook(nbIndex, newStatus) {
+    if (newStatus === 2) {
+      if (!confirm("Are you sure you want to delete this notebook? This action cannot be undone.")) {
+        return;
+      }
+    }
     const result = await API.post('toggleNotebook', {
       notebookIndex: nbIndex,
       status: newStatus,
     });
     if (result && result.success) {
-      showToast(`Notebook ${newStatus === 0 ? 'disabled' : 'enabled'}`, 'success');
+      let msg = '';
+      if (newStatus === 0) msg = 'Notebook disabled';
+      else if (newStatus === 1) msg = 'Notebook enabled';
+      else if (newStatus === 2) msg = 'Notebook deleted';
+      showToast(msg, 'success');
       this.loadNotebooks();
     }
   },
