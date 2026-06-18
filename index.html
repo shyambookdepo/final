@@ -32,6 +32,9 @@
           <span class="nav-link-text">Admin</span>
         </a>
       </div>
+      <button id="btn-reload" class="btn-theme-toggle" title="Reload Data" aria-label="Reload Data">
+        <span class="reload-icon">🔄</span>
+      </button>
       <button id="theme-toggle" class="btn-theme-toggle" title="Switch to Dark Theme" aria-label="Toggle Theme">
         <span class="theme-toggle-icon">🌙</span>
       </button>
@@ -108,6 +111,7 @@
         <button class="filter-btn" data-filter="partial">🔄 Partial</button>
         <button class="filter-btn" data-filter="completed">✅ Completed</button>
         <button class="filter-btn" data-filter="returned">↩️ Returned</button>
+        <button class="filter-btn" data-filter="cancelled">❌ Cancelled</button>
       </div>
       <div id="entries-list"></div>
     </section>
@@ -176,6 +180,7 @@
           <button class="admin-tab" data-tab="classes">📖 Classes</button>
           <button class="admin-tab" data-tab="books">📕 Books</button>
           <button class="admin-tab" data-tab="notebooks">📓 Notebooks</button>
+          <button class="admin-tab" data-tab="settings">⚙️ Settings</button>
         </div>
 
         <!-- Admin Content Panels -->
@@ -184,6 +189,32 @@
           <div id="admin-classes" class="admin-panel hidden"></div>
           <div id="admin-books" class="admin-panel hidden"></div>
           <div id="admin-notebooks" class="admin-panel hidden"></div>
+          <div id="admin-settings" class="admin-panel hidden">
+            <div style="display: flex; justify-content: center; align-items: center; padding: 20px 0;">
+              <div class="login-card">
+                <h3 class="text-center" style="margin-bottom: 24px;">⚙️ Update Credentials</h3>
+                <form id="form-admin-settings" onsubmit="event.preventDefault();">
+                  <div class="form-group">
+                    <label for="settings-current-username">Current Username</label>
+                    <input type="text" id="settings-current-username" placeholder="Current username" readonly disabled style="opacity: 0.7; cursor: not-allowed;">
+                  </div>
+                  <div class="form-group">
+                    <label for="settings-new-username">New Username</label>
+                    <input type="text" id="settings-new-username" placeholder="Enter new username" required autocomplete="new-username">
+                  </div>
+                  <div class="form-group">
+                    <label for="settings-new-password">New Password</label>
+                    <input type="password" id="settings-new-password" placeholder="Enter new password" required autocomplete="new-password">
+                  </div>
+                  <div class="form-group">
+                    <label for="settings-confirm-password">Confirm New Password</label>
+                    <input type="password" id="settings-confirm-password" placeholder="Confirm new password" required autocomplete="new-password">
+                  </div>
+                  <button type="submit" id="btn-update-settings" class="btn btn-primary btn-lg btn-full" style="margin-top: 10px;">Update Credentials</button>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
