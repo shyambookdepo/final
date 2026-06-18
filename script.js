@@ -69,6 +69,7 @@ const AppState = {
   activeModalCategoryTabs: {}, // Map of studentIndex -> tabId
   // Admin state
   isAdminLoggedIn: false,
+  adminUsername: '',
   adminTab: 'schools',
   adminData: {
     schools: [],
@@ -79,12 +80,158 @@ const AppState = {
 };
 
 // ============================================
+// CACHE MANAGER
+// ============================================
+const CacheManager = {
+  cacheKey: 'sbd_cache',
+  
+  hasCache() {
+    return !!localStorage.getItem(this.cacheKey);
+  },
+
+  getCache() {
+    try {
+      const data = localStorage.getItem(this.cacheKey);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+
+  setCache(data) {
+    localStorage.setItem(this.cacheKey, JSON.stringify(data));
+  },
+
+  // --- Draft Invoice Methods ---
+  saveDraftInvoice() {
+    localStorage.setItem('sbd_draft_invoice', JSON.stringify(AppState.invoice));
+  },
+
+  loadDraftInvoice() {
+    try {
+      const draft = localStorage.getItem('sbd_draft_invoice');
+      if (draft) {
+        AppState.invoice = JSON.parse(draft);
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  },
+
+  clearDraftInvoice() {
+    localStorage.removeItem('sbd_draft_invoice');
+  },
+
+  async syncBackground() {
+    try {
+      const url = new URL(API_URL);
+      url.searchParams.set('action', 'getAllData');
+      const response = await fetch(url.toString());
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          this.setCache(data.data);
+        }
+      }
+    } catch (e) {
+      console.error('Background sync failed', e);
+    }
+  },
+
+  async reloadData() {
+    const btnIcon = document.querySelector('#btn-reload .reload-icon');
+    if (btnIcon) btnIcon.classList.add('spin');
+    
+    try {
+      const url = new URL(API_URL);
+      url.searchParams.set('action', 'getAllData');
+      const response = await fetch(url.toString());
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          this.setCache(data.data);
+          showToast('Data refreshed successfully', 'success');
+          Router.navigate(AppState.currentPage);
+        } else {
+          showToast('Failed to refresh data', 'error');
+        }
+      }
+    } catch (e) {
+      showToast('Network error during refresh', 'error');
+    } finally {
+      if (btnIcon) btnIcon.classList.remove('spin');
+    }
+  },
+
+  serveFromCache(action, params) {
+    const cache = this.getCache();
+    if (!cache) return null;
+
+    switch (action) {
+      case 'getSchools':
+        return { success: true, data: cache.schools };
+      case 'getClasses': {
+        const schoolIndex = params.schoolIndex;
+        let data = cache.classes;
+        if (schoolIndex !== undefined && schoolIndex !== '') {
+          data = data.filter(c => Number(c.schoolIndex) === Number(schoolIndex));
+        }
+        return { success: true, data: data };
+      }
+      case 'getBooks': {
+        const classIndex = params.classIndex;
+        let data = cache.books;
+        if (classIndex !== undefined && classIndex !== '') {
+          data = data.filter(b => Number(b.classIndex) === Number(classIndex));
+        }
+        return { success: true, data: data };
+      }
+      case 'getNotebooks': {
+        const classIndex = params.classIndex;
+        let data = cache.notebooks;
+        if (classIndex !== undefined && classIndex !== '') {
+          data = data.filter(n => Number(n.classIndex) === Number(classIndex));
+        }
+        return { success: true, data: data };
+      }
+      case 'getEntries':
+        return { success: true, data: cache.entries };
+      case 'getStats':
+        return { success: true, data: cache.stats };
+    }
+    return null;
+  }
+};
+
+// ============================================
 // API MODULE
 // ============================================
 const API = {
-  async get(action, params = {}) {
+  async get(action, params = {}, options = {}) {
+    const cacheableActions = ['getSchools', 'getClasses', 'getBooks', 'getNotebooks', 'getEntries', 'getStats'];
+    if (cacheableActions.includes(action)) {
+      if (CacheManager.hasCache() && !options.forceFetch) {
+        return Promise.resolve(CacheManager.serveFromCache(action, params));
+      } else if (!CacheManager.hasCache()) {
+        try {
+          if (!options.silent) showLoading();
+          const url = new URL(API_URL);
+          url.searchParams.set('action', 'getAllData');
+          const response = await fetch(url.toString());
+          const data = await response.json();
+          if (!options.silent) hideLoading();
+          if (data.success && data.data) {
+            CacheManager.setCache(data.data);
+            return CacheManager.serveFromCache(action, params);
+          }
+        } catch (e) {
+          if (!options.silent) hideLoading();
+        }
+      }
+    }
+
     try {
-      showLoading();
+      if (!options.silent) showLoading();
       const url = new URL(API_URL);
       url.searchParams.set('action', action);
       Object.entries(params).forEach(([key, value]) => {
@@ -95,23 +242,23 @@ const API = {
         throw new Error(`HTTP error: ${response.status}`);
       }
       const data = await response.json();
-      hideLoading();
+      if (!options.silent) hideLoading();
       if (data.error) {
         showToast(data.error, 'error');
         return null;
       }
       return data;
     } catch (error) {
-      hideLoading();
+      if (!options.silent) hideLoading();
       console.error('API GET Error:', error);
       showToast('Failed to fetch data. Please check your connection.', 'error');
       return null;
     }
   },
 
-  async post(action, body = {}) {
+  async post(action, body = {}, options = {}) {
     try {
-      showLoading();
+      if (!options.silent) showLoading();
       const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
@@ -121,14 +268,14 @@ const API = {
         throw new Error(`HTTP error: ${response.status}`);
       }
       const data = await response.json();
-      hideLoading();
+      if (!options.silent) hideLoading();
       if (data.error) {
         showToast(data.error, 'error');
         return null;
       }
       return data;
     } catch (error) {
-      hideLoading();
+      if (!options.silent) hideLoading();
       console.error('API POST Error:', error);
       showToast('Request failed. Please try again.', 'error');
       return null;
@@ -715,9 +862,7 @@ const Invoice = {
   },
 
   renderCatalogCard(item, studentIndex, catType, catIndex) {
-    const len = (item.identity || '').length;
-    const lenClass = len > 10 ? 'identity-extra-long' : (len > 6 ? 'identity-long' : '');
-    const identityClass = `${item.type === 'notebook' ? 'notebook' : ''} ${lenClass}`.trim();
+    const identityClass = item.type === 'notebook' ? 'notebook' : '';
     const isSelected = item.quantity > 0;
     const selectedClass = isSelected ? 'item-card-selected' : '';
     const hasNote = item.message && item.message.trim().length > 0;
@@ -893,6 +1038,7 @@ const Invoice = {
     const student = AppState.invoice.students[studentIndex];
     if (!student || !student.catalog[catType] || !student.catalog[catType][catIndex]) return;
     student.catalog[catType][catIndex].message = message;
+    CacheManager.saveDraftInvoice();
   },
 
   updateInvoiceSummary() {
@@ -913,6 +1059,8 @@ const Invoice = {
     summaryEl.innerHTML = `
       <span>${totalItems} item${totalItems !== 1 ? 's' : ''} | Total: <strong>${formatCurrency(totalAmount)}</strong></span>
     `;
+
+    CacheManager.saveDraftInvoice();
   },
 
   duplicateStudent() {
@@ -1132,26 +1280,57 @@ const Invoice = {
       };
     });
 
-    // Match code.gs createInvoice expected fields
-    const result = await API.post('createInvoice', {
+    // Optimistic UI updates
+    const tempInvoiceNumber = 'ENT-OPTIMISTIC-' + Date.now();
+    const optimisticEntry = {
+      invoiceNumber: tempInvoiceNumber,
       mobileNumber: mobile,
       customerName: name,
       date: dateStr,
       time: timeStr,
       invoiceMessage: message,
       students: studentsData,
-    });
+      isOptimistic: true
+    };
 
-    if (result && result.success) {
-      const invNum = result.data ? result.data.invoiceNumber : '';
-      showToast(`Record ${invNum} created successfully!`, 'success');
-      Modal.hide('modal-checkout');
-      this.reset();
-
-      // Go back to school selection
-      document.getElementById('invoice-view').classList.add('hidden');
-      document.getElementById('school-selection').classList.remove('hidden');
+    const currentCache = CacheManager.getCache();
+    if (currentCache) {
+      if (!currentCache.entries) currentCache.entries = [];
+      currentCache.entries.unshift(optimisticEntry);
+      if (currentCache.stats) {
+        currentCache.stats.totalInvoices++;
+        currentCache.stats.pending += studentsData.reduce((sum, student) => sum + student.items.length, 0);
+      }
+      CacheManager.setCache(currentCache);
     }
+
+    Modal.hide('modal-checkout');
+    this.reset();
+    document.getElementById('invoice-view').classList.add('hidden');
+    document.getElementById('school-selection').classList.remove('hidden');
+    Router.navigate('entries'); // Instantly go to entries
+
+    API.post('createInvoice', {
+      mobileNumber: mobile,
+      customerName: name,
+      date: dateStr,
+      time: timeStr,
+      invoiceMessage: message,
+      students: studentsData,
+    }, { silent: true }).then(result => {
+      if (result && result.success) {
+        showToast(`Record ${result.data ? result.data.invoiceNumber : ''} created successfully!`, 'success');
+        CacheManager.syncBackground(); // Re-sync to get real ID
+      } else {
+        const cache = CacheManager.getCache();
+        if (cache && cache.entries) {
+          cache.entries = cache.entries.filter(e => e.invoiceNumber !== tempInvoiceNumber);
+          CacheManager.setCache(cache);
+        }
+        showToast('Failed to create invoice.', 'error');
+        if (AppState.currentPage === 'entries') Entries.load();
+      }
+    });
   },
 
   reset() {
@@ -1159,6 +1338,7 @@ const Invoice = {
       students: [],
       activeStudentIndex: 0,
     };
+    CacheManager.clearDraftInvoice();
     document.getElementById('student-tabs').innerHTML = '';
     document.getElementById('student-content').innerHTML = '';
     const summaryEl = document.getElementById('invoice-summary');
@@ -1290,10 +1470,12 @@ const Entries = {
     const allPending = allStatuses.every((s) => s === 1);
     const allCompleted = allStatuses.every((s) => s === 0);
     const allReturned = allStatuses.every((s) => s === 2);
+    const allCancelled = allStatuses.every((s) => s === 3);
 
     if (allPending) return 'pending';
     if (allCompleted) return 'completed';
     if (allReturned) return 'returned';
+    if (allCancelled) return 'cancelled';
     return 'partial';
   },
 
@@ -1527,6 +1709,8 @@ const Entries = {
         return 'Pending';
       case 2:
         return 'Returned';
+      case 3:
+        return 'Cancelled';
       default:
         return 'Unknown';
     }
@@ -1540,6 +1724,8 @@ const Entries = {
         return 'pending';
       case 2:
         return 'returned';
+      case 3:
+        return 'cancelled';
       default:
         return '';
     }
@@ -1549,44 +1735,67 @@ const Entries = {
     let actions = '';
 
     if (status === 1) {
-      // Pending → can deliver or return
+      // Pending → can deliver or cancel
       actions += `<button class="btn btn-success btn-sm" onclick="event.stopPropagation(); Entries.updateItemStatus('${escapeHtml(invoiceNumber)}', ${studentIndex}, ${itemIndex}, 0)">✅ Deliver</button>`;
-      actions += `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); Entries.updateItemStatus('${escapeHtml(invoiceNumber)}', ${studentIndex}, ${itemIndex}, 2)">↩️ Return</button>`;
+      actions += `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); Entries.updateItemStatus('${escapeHtml(invoiceNumber)}', ${studentIndex}, ${itemIndex}, 3)">❌ Cancel</button>`;
     } else if (status === 0) {
       // Delivered → can return
       actions += `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); Entries.updateItemStatus('${escapeHtml(invoiceNumber)}', ${studentIndex}, ${itemIndex}, 2)">↩️ Return</button>`;
     }
-    // Returned → no actions
+    // Returned/Cancelled → no actions
 
     return actions;
   },
 
   async updateItemStatus(invoiceNumber, studentIndex, itemIndex, newStatus) {
-    const result = await API.post('updateItemStatus', {
+    const entry = AppState.entries.find((e) => e.invoiceNumber === invoiceNumber);
+    if (!entry || !entry.students[studentIndex] || !entry.students[studentIndex].items[itemIndex]) return;
+
+    const item = entry.students[studentIndex].items[itemIndex];
+    const previousStatus = item.status;
+    
+    // Optimistic Update
+    item.status = newStatus;
+    
+    // Update cache
+    const currentCache = CacheManager.getCache();
+    if (currentCache && currentCache.entries) {
+      const cacheEntry = currentCache.entries.find((e) => e.invoiceNumber === invoiceNumber);
+      if (cacheEntry && cacheEntry.students[studentIndex] && cacheEntry.students[studentIndex].items[itemIndex]) {
+        cacheEntry.students[studentIndex].items[itemIndex].status = newStatus;
+        CacheManager.setCache(currentCache);
+      }
+    }
+
+    this.applyFiltersAndSearch();
+    document.getElementById('invoice-details-body').innerHTML = this.renderEntryDetails(entry);
+
+    // Background Request
+    API.post('updateItemStatus', {
       invoiceNumber,
       studentIndex,
       itemIndex,
       newStatus,
-    });
-
-    if (result && result.success) {
-      // Update local state
-      const entry = AppState.entries.find(
-        (e) => e.invoiceNumber === invoiceNumber
-      );
-      if (entry && entry.students[studentIndex] && entry.students[studentIndex].items[itemIndex]) {
-        entry.students[studentIndex].items[itemIndex].status = newStatus;
-      }
-
-      this.applyFiltersAndSearch();
-
-      // Dynamically re-render details in the open modal to update UI reactively
-      if (entry) {
+    }, { silent: true }).then(result => {
+      if (result && result.success) {
+        showToast('Status updated', 'success');
+        CacheManager.syncBackground();
+      } else {
+        // Revert
+        item.status = previousStatus;
+        const cache = CacheManager.getCache();
+        if (cache && cache.entries) {
+          const ce = cache.entries.find((e) => e.invoiceNumber === invoiceNumber);
+          if (ce && ce.students[studentIndex] && ce.students[studentIndex].items[itemIndex]) {
+            ce.students[studentIndex].items[itemIndex].status = previousStatus;
+            CacheManager.setCache(cache);
+          }
+        }
+        showToast('Failed to update status', 'error');
+        this.applyFiltersAndSearch();
         document.getElementById('invoice-details-body').innerHTML = this.renderEntryDetails(entry);
       }
-
-      showToast('Status updated successfully', 'success');
-    }
+    });
   },
 };
 
@@ -1612,6 +1821,7 @@ const Admin = {
 
     if (res && res.success && res.data && res.data.authenticated) {
       AppState.isAdminLoggedIn = true;
+      AppState.adminUsername = username;
       document.getElementById('admin-login').classList.add('hidden');
       document.getElementById('admin-dashboard').classList.remove('hidden');
       this.loadDashboard();
@@ -1622,15 +1832,18 @@ const Admin = {
     }
   },
 
-  logout() {
+  logout(shouldShowToast = true) {
     AppState.isAdminLoggedIn = false;
+    AppState.adminUsername = '';
     AppState.adminData = { schools: [], classes: [], books: [], notebooks: [] };
     document.getElementById('admin-dashboard').classList.add('hidden');
     document.getElementById('admin-login').classList.remove('hidden');
     document.getElementById('admin-username').value = '';
     document.getElementById('admin-password').value = '';
     document.getElementById('login-error').classList.add('hidden');
-    showToast('Logged out', 'info');
+    if (shouldShowToast) {
+      showToast('Logged out', 'info');
+    }
   },
 
   async loadDashboard() {
@@ -1721,6 +1934,52 @@ const Admin = {
       case 'notebooks':
         this.loadNotebooks();
         break;
+      case 'settings':
+        this.loadSettings();
+        break;
+    }
+  },
+
+  loadSettings() {
+    const currentUsernameInput = document.getElementById('settings-current-username');
+    if (currentUsernameInput) {
+      currentUsernameInput.value = AppState.adminUsername || '';
+    }
+    const newUsernameInput = document.getElementById('settings-new-username');
+    const newPasswordInput = document.getElementById('settings-new-password');
+    const confirmPasswordInput = document.getElementById('settings-confirm-password');
+    if (newUsernameInput) newUsernameInput.value = '';
+    if (newPasswordInput) newPasswordInput.value = '';
+    if (confirmPasswordInput) confirmPasswordInput.value = '';
+  },
+
+  async updateSettings() {
+    const currentUsername = AppState.adminUsername;
+    const newUsername = document.getElementById('settings-new-username').value.trim();
+    const newPassword = document.getElementById('settings-new-password').value.trim();
+    const confirmPassword = document.getElementById('settings-confirm-password').value.trim();
+
+    if (!newUsername || !newPassword || !confirmPassword) {
+      showToast('Please fill in all fields.', 'danger');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showToast('New password and confirm password do not match.', 'danger');
+      return;
+    }
+
+    const res = await API.post('updateAdminCredentials', {
+      currentUsername,
+      newUsername,
+      newPassword,
+    });
+
+    if (res && res.success) {
+      this.logout(false);
+      showToast('Credentials updated!', 'success');
+    } else {
+      showToast(res.error || 'Failed to update credentials.', 'danger');
     }
   },
 
@@ -2555,6 +2814,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // --- Admin Settings Form ---
+  const formSettings = document.getElementById('form-admin-settings');
+  if (formSettings) {
+    formSettings.addEventListener('submit', (e) => {
+      e.preventDefault();
+      Admin.updateSettings();
+    });
+  }
+
   // --- Admin Modal ---
   document.getElementById('btn-cancel-admin').addEventListener('click', () => {
     Modal.hide('modal-admin');
@@ -2613,6 +2881,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // --- Reload Button ---
+  const btnReload = document.getElementById('btn-reload');
+  if (btnReload) {
+    btnReload.addEventListener('click', () => {
+      CacheManager.reloadData();
+    });
+  }
+
   // --- Initialize ---
-  Router.navigate('home');
+  if (CacheManager.loadDraftInvoice() && AppState.invoice.students.length > 0) {
+    const firstStudent = AppState.invoice.students[0];
+    AppState.selectedSchool = { name: firstStudent.schoolName };
+    AppState.selectedClass = { index: firstStudent.classIndex, name: firstStudent.className };
+
+    const pageTitle = document.getElementById('invoice-page-title');
+    if (pageTitle) {
+      pageTitle.textContent = `${firstStudent.schoolName} → ${firstStudent.className}`;
+    }
+
+    Router.navigate('home');
+    
+    document.getElementById('school-selection').classList.add('hidden');
+    document.getElementById('class-selection').classList.add('hidden');
+    document.getElementById('invoice-view').classList.remove('hidden');
+
+    Invoice.renderStudentTabs();
+    Invoice.renderStudentContent(AppState.invoice.activeStudentIndex || 0);
+    Invoice.updateInvoiceSummary();
+  } else {
+    Router.navigate('home');
+  }
+
+  if (CacheManager.hasCache()) {
+    CacheManager.syncBackground();
+  }
 });
