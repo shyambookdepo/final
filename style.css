@@ -2196,3 +2196,99 @@ input, select, textarea {
 .mb-1 { margin-bottom: 8px; }
 .mb-2 { margin-bottom: 16px; }
 .mb-3 { margin-bottom: 24px; }
+
+/* ============================================
+   18. WHATSAPP BATCH OPERATIONS
+   ============================================ */
+.action-btn-wrapper {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  margin-right: 4px;
+}
+
+.action-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-duo-green);
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.btn-status-action.is-selected {
+  outline: 2px solid var(--color-duo-green);
+  box-shadow: 0 0 8px rgba(88, 204, 2, 0.4);
+}
+
+.batch-action-bar {
+  background: var(--theme-summary-card-bg);
+  border: 2px solid var(--color-duo-green);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+  margin-top: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-shadow: 0 4px 0 rgba(88, 204, 2, 0.15);
+  animation: slideInUp 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.batch-action-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--theme-text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.batch-action-count {
+  background-color: var(--color-duo-green);
+  color: #fff;
+  border-radius: 50%;
+  padding: 2px 8px;
+  font-size: 12px;
+  margin-left: 8px;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 500px) {
+  .batch-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .batch-action-text {
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+  
+  .batch-action-bar button {
+    width: 100%;
+  }
+}
+
